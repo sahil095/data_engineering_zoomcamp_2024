@@ -1,10 +1,9 @@
 FROM python:3.9
 
-# RUN pip install pandas
+RUN apt-get install wget
+RUN pip install pandas sqlalchemy psycopg2
 
-# WORKDIR /app
-# COPY pipeline.py pipeline.py
+WORKDIR /app
+COPY upload_lookup.py upload_lookup.py
 
-# ENTRYPOINT ["python", "pipeline.py"]
-
-ENTRYPOINT ["bash"]
+ENTRYPOINT ["python", "upload_lookup.py"]

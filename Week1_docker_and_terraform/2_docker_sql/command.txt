@@ -2,18 +2,20 @@ docker run -it \
     -e POSTGRES_USER = "root" \
     -e POSTGRES_PASSWORD = "root" \
     -e POSTGRES_DB = "ny_taxi" \
-    -v /D:/Data_Engineering_ZoomCamp/Week1_Docker_and_Terraform/2_docker_sql/ny_taxi_postgres_data:/var/lib/postgresql/data \
+    -v /D:/Data_Engineering_ZoomCamp/data_engineering_zoomcamp_2024/Week1_docker_and_terraform/2_docker_sql/ny_taxi_postgres_data_hw:/var/lib/postgresql/data \
     -p 5431:5432 \ 
     postgres:13
 
-winpty docker run -it -e POSTGRES_USER="root" -e POSTGRES_PASSWORD="root" -e POSTGRES_DB="ny_taxi" -v D:/Data_Engineering_ZoomCamp/Week1_Docker_and_Terraform/2_docker_sql/ny_taxi_postgres_data:/var/lib/postgresql/data -p 5431:5432 postgres:13
+winpty docker run -it -e POSTGRES_USER="root" -e POSTGRES_PASSWORD="root" -e POSTGRES_DB="ny_taxi" -v /D:/Data_Engineering_ZoomCamp/data_engineering_zoomcamp_2024/Week1_docker_and_terraform/2_docker_sql/ny_taxi_postgres_data_hw:/var/lib/postgresql/data -p 5431:5432 postgres:13
 
 
 winpty pgcli -h localhost -p 5431 -u root -d ny_taxi
 
 NY Taxi data link (csv)
 
-https://s3.amazonaws.com/nyc-tlc/trip+data/yellow_tripdata_2021-01.csv
+curl -kLSs https://github.com/DataTalksClub/nyc-tlc-data/releases/download/green/green_tripdata_2019-09.csv.gz -o output.csv.gz
+
+URL = "s3://data.engineering.zoomcamp.2024/Week 1 - Docker and Terraform/yellow_tripdata_2021-01.csv"
 
 
 pgAdmin Code
@@ -50,3 +52,49 @@ winpty docker run -it \
     dpage/pgadmin4
 
 winpty docker run -it -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" -e PGADMIN_DEFAULT_PASSWORD="root" -p 8080:80 --network=pg-network --name pgAdmin-container dpage/pgadmin4
+
+#### params for python script
+
+S3_URL = "https://s3.amazonaws.com/data.engineering.zoomcamp.2024/Week+1+-+Docker+and+Terraform/yellow_tripdata_2021-01.csv"
+python ingest_data.py 
+    --user=root \
+    --password=root \
+    --host=localhost \
+    --port=5431 \
+    --db=ny_taxi \
+    --table_name=yellow_taxi_trips \
+    --url=${URL}
+
+python ingest_data.py --user=root --password=root --host=localhost --port=5431 --db=ny_taxi --table_name=yellow_taxi_trips --url="https://s3.amazonaws.com/data.engineering.zoomcamp.2024/Week+1+-+Docker+and+Terraform/yellow_tripdata_2021-01.csv"
+
+#### creating ingesting pipeline in docker
+docker build -t taxi_ingest:v002 .
+
+
+docker run -it \
+    --network=pg-network \
+    taxi_ingest:v001 \ 
+        --user=root \
+        --password=root \
+        --host=pg-database \
+        --port=5431 \
+        --db=ny_taxi \
+        --table_name=yellow_taxi_trips \
+        --url=${S3_URL}
+
+winpty docker run -it --network=pg-network taxi_ingest:v002 --user=root --password=root --host=pg-database --port=5432 --db=ny_taxi --table_name=green_taxi_trips --url="http://172.27.224.1:8000/green_tripdata_2019-09.csv"
+
+
+
+#### Python http server
+
+python -m http.server
+
+local url for faster download 
+
+LURL = "http://172.27.224.1:8000/green_tripdata_2019-09.csv"
+
+# Lookup table
+
+docker build -t lookup_ingest:v001 .
+winpty docker run -it --network=pg-network lookup_ingest:v001 --user=root --password=root --host=pg-database --port=5432 --db=ny_taxi --table_name=taxi_zone_lookup --url="http://172.27.224.1:8000/taxi+_zone_lookup.csv"
